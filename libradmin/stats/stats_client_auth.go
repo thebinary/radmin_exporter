@@ -33,6 +33,6 @@ func ClientAuthStats(r *libradmin.RadminClient) (stats ClientAuth, err error) {
 
 func ClientAuthStatsForClient(r *libradmin.RadminClient, ipaddr string) (stats ClientAuth, err error) {
 	stats = ClientAuth{}
-	err = fetchStats(r, "auth", "", &stats)
+	err = fetchStats(r, "auth", ipaddr, &stats)
 	return stats, err
 }
