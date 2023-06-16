@@ -2,7 +2,6 @@ package libradmin
 
 import (
 	"encoding/binary"
-	"log"
 	"net"
 	"sync"
 )
@@ -19,20 +18,7 @@ type RadminClient struct {
 NewRadminClient returns a Radmin Client object ready to recieve radmin commands
 */
 func NewRadminClient(socketAddr string) (r *RadminClient, err error) {
-	r = &RadminClient{}
-
-	r.Conn, err = net.Dial("unix", socketAddr)
-	if err != nil {
-		return r, err
-	}
-
-	// communicate magic header
-	err = r.magicInit()
-	if err != nil {
-		return r, err
-	}
-
-	return
+	return NewRadminClientWithConn("unix", socketAddr)
 }
 
 /*
@@ -47,7 +33,7 @@ func NewRadminClientWithConn(connType, connAddr string) (r *RadminClient, err er
 
 	r.Conn, err = net.Dial(connType, connAddr)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	// communicate  magic header
 	err = r.magicInit()
