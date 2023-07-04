@@ -114,7 +114,9 @@ func main() {
 
 	poll_clients := strings.Split(clients, ",")
 	// remove first empty element resulting from split above
-	poll_clients = poll_clients[1:]
+	if len(poll_clients) == 1 && poll_clients[0] == "" {
+		poll_clients = poll_clients[1:]
+	}
 
 	if enableAuth {
 		log.Println("Registering Authentication statistics exporter")
