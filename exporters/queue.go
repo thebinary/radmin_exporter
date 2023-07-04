@@ -10,8 +10,9 @@ import (
 )
 
 type QueueExporter struct {
-	mutex    sync.Mutex
-	sockAddr string
+	mutex       sync.Mutex
+	radmin      *libradmin.RadminClient
+	withClients []string
 
 	queueLenInternal *prometheus.Desc
 	queueLenProxy    *prometheus.Desc
@@ -22,9 +23,10 @@ type QueueExporter struct {
 	queuePPSOut      *prometheus.Desc
 }
 
-func NewQueueExporter(sockAddr string) (ce *QueueExporter) {
+func NewQueueExporter(radmin *libradmin.RadminClient, withClients ...string) (ce *QueueExporter) {
 	return &QueueExporter{
-		sockAddr: sockAddr,
+		radmin:      radmin,
+		withClients: withClients,
 		queueLenInternal: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, sub_queue, "queue_len_internal"),
 			"Internal Queue Length",
@@ -86,16 +88,16 @@ func (c *QueueExporter) Collect(ch chan<- prometheus.Metric) {
 	c.mutex.Lock() // To protect metrics from concurrent collects.
 	defer c.mutex.Unlock()
 
-	r, err := libradmin.NewRadminClient(c.sockAddr)
+	err := c.radmin.Dial()
 	if err != nil {
 		log.Printf("error connecting to control socket: %s", err)
 		return
 	}
-	defer r.Close()
+	defer c.radmin.Close()
 
-	s, err := stats.QueueStats(r)
+	s, err := stats.QueueStats(c.radmin)
 	if err != nil {
-		log.Printf("error executing stats cmd: %s", err)
+		log.Printf("error executing queue stats cmd: %s", err)
 		return
 	}
 

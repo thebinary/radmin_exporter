@@ -8,6 +8,8 @@ import (
 
 type RadminClient struct {
 	net.Conn
+	sockType        string
+	sockAddr        string
 	lastReadChannel uint32 // last channel the response was written to
 	lastReadStatus  int32  // status for the last reponse that was written to the STATUS channel
 	mu              sync.Mutex
@@ -18,7 +20,9 @@ type RadminClient struct {
 NewRadminClient returns a Radmin Client object ready to recieve radmin commands
 */
 func NewRadminClient(socketAddr string) (r *RadminClient, err error) {
-	return NewRadminClientWithConn("unix", socketAddr)
+	r = NewRadminClientWithConn("unix", socketAddr)
+	err = r.Dial()
+	return r, err
 }
 
 /*
@@ -28,20 +32,21 @@ eg:
   - unix-socket listened over TCP using socat
     socat TCP-LISTEN:18121,fork,reuseaddr UNIX-CONNECT:/usr/local/var/run/radiusd/radiusd.sock
 */
-func NewRadminClientWithConn(connType, connAddr string) (r *RadminClient, err error) {
-	r = &RadminClient{}
+func NewRadminClientWithConn(sockType, sockAddr string) (r *RadminClient) {
+	return &RadminClient{
+		sockType: sockType,
+		sockAddr: sockAddr,
+	}
+}
 
-	r.Conn, err = net.Dial(connType, connAddr)
+func (r *RadminClient) Dial() (err error) {
+	r.Conn, err = net.Dial(r.sockType, r.sockAddr)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// communicate  magic header
 	err = r.magicInit()
-	if err != nil {
-		return r, err
-	}
-
-	return
+	return err
 }
 
 func (r *RadminClient) LastReadChannel() (channel uint32) {

@@ -10,8 +10,9 @@ import (
 )
 
 type ClientAcctExporter struct {
-	mutex    sync.Mutex
-	sockAddr string
+	mutex       sync.Mutex
+	radmin      *libradmin.RadminClient
+	withClients []string
 
 	requests         *prometheus.Desc
 	responses        *prometheus.Desc
@@ -25,9 +26,10 @@ type ClientAcctExporter struct {
 	//LastPacket       time.Time
 }
 
-func NewClientAcctExporter(sockAddr string) (ce *ClientAcctExporter) {
+func NewClientAcctExporter(radmin *libradmin.RadminClient, withClients ...string) (ce *ClientAcctExporter) {
 	return &ClientAcctExporter{
-		sockAddr: sockAddr,
+		radmin:      radmin,
+		withClients: withClients,
 		requests: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, sub_client_acct, "requests_total"),
 			"Current Total Accounting Requests",
@@ -102,16 +104,16 @@ func (c *ClientAcctExporter) Collect(ch chan<- prometheus.Metric) {
 	c.mutex.Lock() // To protect metrics from concurrent collects.
 	defer c.mutex.Unlock()
 
-	r, err := libradmin.NewRadminClient(c.sockAddr)
+	err := c.radmin.Dial()
 	if err != nil {
 		log.Printf("error connecting to control socket: %s", err)
 		return
 	}
-	defer r.Close()
+	defer c.radmin.Close()
 
-	s, err := stats.ClientAcctStats(r)
+	s, err := stats.ClientAcctStats(c.radmin)
 	if err != nil {
-		log.Printf("error executing stats cmd: %s", err)
+		log.Printf("error executing acct stats cmd: %s", err)
 		return
 	}
 

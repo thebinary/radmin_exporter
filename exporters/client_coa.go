@@ -10,8 +10,9 @@ import (
 )
 
 type ClientCoaExporter struct {
-	mutex    sync.Mutex
-	sockAddr string
+	mutex       sync.Mutex
+	radmin      *libradmin.RadminClient
+	withClients []string
 
 	requests         *prometheus.Desc
 	responses        *prometheus.Desc
@@ -25,9 +26,10 @@ type ClientCoaExporter struct {
 	//LastPacket       time.Time
 }
 
-func NewClientCoaExporter(sockAddr string) (ce *ClientCoaExporter) {
+func NewClientCoaExporter(radmin *libradmin.RadminClient, withClients ...string) (ce *ClientCoaExporter) {
 	return &ClientCoaExporter{
-		sockAddr: sockAddr,
+		radmin:      radmin,
+		withClients: withClients,
 		requests: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, sub_client_coa, "requests_total"),
 			"Current Total COA Requests",
@@ -102,16 +104,16 @@ func (c *ClientCoaExporter) Collect(ch chan<- prometheus.Metric) {
 	c.mutex.Lock() // To protect metrics from concurrent collects.
 	defer c.mutex.Unlock()
 
-	r, err := libradmin.NewRadminClient(c.sockAddr)
+	err := c.radmin.Dial()
 	if err != nil {
 		log.Printf("error connecting to control socket: %s", err)
 		return
 	}
-	defer r.Close()
+	defer c.radmin.Close()
 
-	s, err := stats.ClientCoaStats(r)
+	s, err := stats.ClientCoaStats(c.radmin)
 	if err != nil {
-		log.Printf("error executing stats cmd: %s", err)
+		log.Printf("error executing coa stats cmd: %s", err)
 		return
 	}
 

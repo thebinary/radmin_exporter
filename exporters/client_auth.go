@@ -10,8 +10,9 @@ import (
 )
 
 type ClientAuthExporter struct {
-	mutex    sync.Mutex
-	sockAddr string
+	mutex       sync.Mutex
+	radmin      *libradmin.RadminClient
+	withClients []string
 
 	requests         *prometheus.Desc
 	responses        *prometheus.Desc
@@ -28,9 +29,10 @@ type ClientAuthExporter struct {
 	//LastPacket       time.Time
 }
 
-func NewClientAuthExporter(sockAddr string) (ce *ClientAuthExporter) {
+func NewClientAuthExporter(radmin *libradmin.RadminClient, withClients ...string) (ce *ClientAuthExporter) {
 	return &ClientAuthExporter{
-		sockAddr: sockAddr,
+		radmin:      radmin,
+		withClients: withClients,
 		requests: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, sub_client_auth, "requests_total"),
 			"Current Total Authorization Requests",
@@ -126,14 +128,14 @@ func (c *ClientAuthExporter) Collect(ch chan<- prometheus.Metric) {
 	c.mutex.Lock() // To protect metrics from concurrent collects.
 	defer c.mutex.Unlock()
 
-	r, err := libradmin.NewRadminClient(c.sockAddr)
+	err := c.radmin.Dial()
 	if err != nil {
 		log.Printf("error connecting to control socket: %s", err)
 		return
 	}
-	defer r.Close()
+	defer c.radmin.Close()
 
-	s, err := stats.ClientAuthStats(r)
+	s, err := stats.ClientAuthStats(c.radmin)
 	if err != nil {
 		log.Printf("error executing stats cmd: %s", err)
 		return
